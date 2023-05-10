@@ -1,0 +1,128 @@
+from pygame import *
+from random import randint
+from time import time as tm
+
+class GameSprite(sprite.Sprite):
+    def __init__(self, img, x, y, sizeX, sizeY, speed=0):
+        super().__init__()
+        self.img = transform.scale(image.load(img), (sizeX, sizeY))
+        self.rect = self.img.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speed = speed
+    def reset(self):
+        mw.blit(self.img, (self.rect.x, self.rect.y))
+class Player(GameSprite):
+    def __init__(self, img, sizeX, sizeY, speed=0):
+        super().__init__(img, (maxX - sizeX)//2, maxY - sizeY, sizeX, sizeY, speed)        
+    def keyProcessing(self):
+        keys = key.get_pressed()
+        if keys[K_UP] or keys[K_w]:
+            self.fire()
+        if keys[K_LEFT] or keys[K_a]:
+            self.rect.x -= self.speed
+        if keys[K_RIGHT] or keys[K_d]:
+            self.rect.x += self.speed   
+        #self.rect.x *= (self.rect.x + 1 + abs(self.rect.x +1)) / ((self.rect.x +1)* 2)
+        #self.rect.x = (self.rect.x // (maxX - self.rect.width)) * (maxX - self.rect.width) + (self.rect.x %  (maxX - self.rect.width)) * (1 - (self.rect.x // (maxX - self.rect.width)))
+        if self.rect.x > (maxX - self.rect.width):
+            self.rect.x = (maxX - self.rect.width)
+        elif self.rect.x < 0:
+            self.rect.x = 0
+    def fire(self):
+        if tm() - selfPrevShotTime >= 0.1:
+            bullets.append(Bullet('bullet.png', self.rect.x + int((self.rect.width - 20)/2), self.rect.y, 20, 40, 20))
+            self.selfPrevShotTime = tm()
+class Enemy(GameSprite):
+    def __init__(self, img, sizeX, sizeY, speed=0):
+        x = randint(0, maxX - sizeX)
+        super().__init__(img, x, 0 - sizeY, sizeX, sizeY, speed)
+    def move(self):
+        self.rect.y += self.speed
+        if self.rect.y >= maxY - self.rect.height:
+            self.respawn()
+            global antiScore
+            antiScore += 1
+            if antiScore > 1000000000000000000000000000000000000000:
+                global gameRes
+                gameRes = -1
+    def respawn(self):
+        self.rect.y = 0 - self.rect.height
+        self.rect.x = randint(0, maxX - self.rect.width)
+        self.speed = 0
+
+class Bullet(GameSprite):
+    def move(self):
+        self.rect.y -= self.speed
+        for enemy in enemys:
+            if sprite.collide_rect(enemy, self):
+                enemy.respawn()
+                if self in bullets:
+                    bullets.remove(self)
+                global score 
+                score += 1
+                if score > 1000000000000000000000000000000000000000:
+                    global gameRes
+                    gameRes = 1
+                enemys.append(Enemy('ufo.png', 50, 50, randint(2, 3)))
+        if self.rect.y <=0:
+            if self in bullets:
+                bullets.remove(self)
+
+maxX = 1280
+maxY = 720
+score = 0
+antiScore = 0
+wallColor = (150, 200, 150)
+selfPrevShotTime = tm()
+mw = display.set_mode((maxX, maxY))
+display.set_caption('SHOOTER')
+
+mixer.init()#инициализировать микшер
+mixer.music.load('space.ogg')#загрузить фоновую музыку
+mixer.music.play()#начать воспроизведение фоновой музыки
+fire = mixer.Sound('fire.ogg')#загрузить звук выстрела
+
+game = True
+clock = time.Clock()
+bg = GameSprite('galaxy.jpg', 0, 0, maxX, maxY)
+player = Player('rocket.png', 50, 50, 70)
+bullets = list()
+enemys = list()
+for i in range(750):
+    enemys.append(Enemy('ufo.png', 50, 50, 0))
+font.init()###
+font_ = font.SysFont('Arial', 50)###
+font2 = font.SysFont('Arial', 20)
+gameOver = font_.render('YOU LOSE', True, (255, 0, 0))###
+victory = font_.render('YOU WIN', True, (255, 0, 0))###
+
+gameRes = 0
+while game:
+    bg.reset()
+    if gameRes == 0:
+        player.keyProcessing()
+        
+        for enemy in enemys:
+            enemy.move()#  
+            enemy.reset()# 
+            if sprite.collide_rect(enemy, player):
+                gameRes = -1
+                #scream.play()  
+        for bullet in bullets:
+            bullet.move()#  
+            bullet.reset()#         
+        player.reset()
+    elif gameRes == -1:
+        mw.blit(gameOver, (maxX//2, maxY//2))
+    else:
+        mw.blit(victory, (maxX//2, maxY//2))
+    for e in event.get():
+        if e.type == QUIT:
+            game = False
+    scoreLabel = font_.render('SCORE: ' + str(score), True, (255, 255, 255))###
+    antiScoreLabel = font_.render('antiSCORE: ' + str(antiScore), True, (255, 255, 255))###
+    mw.blit(scoreLabel, (0, 0))
+    mw.blit(antiScoreLabel, (0, 40))
+    display.update()
+    clock.tick(9999999999999999999999999999999999)
